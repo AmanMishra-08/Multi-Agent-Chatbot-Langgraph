@@ -31,7 +31,7 @@ graph_builder.add_conditional_edges(
         "web": "web",
     },
 )
-
+# it return state[llm/rag/web]
 # All three branches funnel into "answer" to polish + save memory
 graph_builder.add_edge("llm", "answer")
 graph_builder.add_edge("rag", "answer")

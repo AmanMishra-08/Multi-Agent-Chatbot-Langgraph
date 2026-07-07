@@ -7,7 +7,7 @@ handle the user's question. Reply with EXACTLY ONE WORD, nothing else:
 - "web"  -> if the question needs current / real-time / recent
             information (news, prices, live events, "latest", "today")
 - "llm"  -> for everything else (general knowledge, coding help,
-            casual conversation, math, explanations)
+            casual conversation, math, explanations,summerization)
 
 Answer with only one of: rag, web, llm
 """

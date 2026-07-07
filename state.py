@@ -1,3 +1,4 @@
+#shared state that every node in your graph can access.
 from typing import List, TypedDict
 
 
