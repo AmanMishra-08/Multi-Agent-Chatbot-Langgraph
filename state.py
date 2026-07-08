@@ -1,24 +1,34 @@
 #shared state that every node in your graph can access.
-from typing import List, TypedDict
 
-
-class ChatState(TypedDict):
-    """
+"""
     Shared state passed between all LangGraph nodes.
     Every node reads from this and writes back to it.
     """
 
-    # User's current question
-    question: str
+from typing import List, TypedDict
 
-    # Router's decision: "llm", "rag", or "web"
+
+class ChatState(TypedDict):
+    # Current user question
+    question: str
+    
+    # NEW: standalone version of the question (resolves follow-ups)
+    standalone_question:str
+
+    # Router decision
     route: str
 
-    # Retrieved chunks (RAG) or search results (web) for this turn
-    documents: List[str]
+    # RAG retrieved chunks
+    rag_context: List[str]
 
-    # Final answer for this turn
+    # Web search results
+    web_context: List[str]
+
+    # Context passed to the LLM
+    retrieved_context: str
+
+    # Final answer
     answer: str
 
-    # Full conversation memory: list of {"role": ..., "content": ...}
+    # Conversation history
     chat_history: List[dict]

@@ -15,7 +15,7 @@ llm = ChatGroq(
 
 
 def web_node(state: ChatState) -> ChatState:
-    question = state["question"]
+    question = state["standalone_question"]
     chat_history = state.get("chat_history", [])
 
     # Run a web search via Tavily
@@ -25,10 +25,14 @@ def web_node(state: ChatState) -> ChatState:
     system_prompt = (
         "You are a helpful assistant. Use the web search results below "
         "to answer the user's question accurately and concisely. "
+        "If the user's question has multiple parts (e.g. asks for two or "
+        "more distinct pieces of information), make sure to address EACH "
+        "part explicitly in your answer, even if one part isn't fully "
+        "covered by the search results — in that case, say so briefly "
+        "instead of skipping it. "
         "Mention that the information comes from a web search if relevant.\n\n"
         f"Search results:\n{context}"
     )
-
     past_messages = history_to_messages(chat_history)
 
     messages = [SystemMessage(content=system_prompt)]
@@ -37,6 +41,7 @@ def web_node(state: ChatState) -> ChatState:
 
     response = llm.invoke(messages)
 
-    state["documents"] = search_results
+    state["web_context"] = search_results
+    state["retrieved_context"] = context
     state["answer"] = response.content
     return state

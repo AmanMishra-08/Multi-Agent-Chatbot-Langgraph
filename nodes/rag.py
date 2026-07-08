@@ -15,7 +15,7 @@ llm = ChatGroq(
 
 
 def rag_node(state: ChatState) -> ChatState:
-    question = state["question"]
+    question = state["standalone_question"]
     chat_history = state.get("chat_history", [])
 
     # Retrieve relevant chunks from the FAISS index
@@ -36,7 +36,10 @@ def rag_node(state: ChatState) -> ChatState:
     messages.append(HumanMessage(content=question))
 
     response = llm.invoke(messages)
-
-    state["documents"] = context_chunks
+    state["rag_context"] = context_chunks
+    state["retrieved_context"] = context
     state["answer"] = response.content
-    return state
+
+    return state  
+
+   
