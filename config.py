@@ -37,3 +37,5 @@ VECTOR_DB_PATH = "faiss_index"
 # =============================
 
 MAX_HISTORY_MESSAGES = 20
+
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")

@@ -12,3 +12,4 @@ pypdf
 python-dotenv
 tavily-python
 typing_extensions
+google-search-results

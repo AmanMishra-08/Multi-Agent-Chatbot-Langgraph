@@ -1,19 +1,12 @@
-#shared state that every node in your graph can access.
-
-"""
-    Shared state passed between all LangGraph nodes.
-    Every node reads from this and writes back to it.
-    """
-
-from typing import List, TypedDict
+from typing import TypedDict, List, Dict, Any
 
 
 class ChatState(TypedDict):
-    # Current user question
+    # Original user question
     question: str
-    
-    # NEW: standalone version of the question (resolves follow-ups)
-    standalone_question:str
+
+    # Rewritten standalone question
+    standalone_question: str
 
     # Router decision
     route: str
@@ -24,11 +17,18 @@ class ChatState(TypedDict):
     # Web search results
     web_context: List[str]
 
-    # Context passed to the LLM
+    # Combined context passed to the LLM
     retrieved_context: str
 
-    # Final answer
+    # Final response
     answer: str
 
-    # Conversation history
+    # Conversation memory
     chat_history: List[dict]
+
+    # Image search results
+    fetched_images: List[Dict[str, Any]]
+
+    # NEW: remembers the last image subject
+    # Example: "Virat Kohli", "Rohit Sharma"
+    last_image_subject: str

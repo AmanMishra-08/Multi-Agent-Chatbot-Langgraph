@@ -1,3 +1,5 @@
+import re
+
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -14,33 +16,86 @@ llm = ChatGroq(
 )
 
 
+IMAGE_WORDS = [
+    "image",
+    "images",
+    "photo",
+    "photos",
+    "picture",
+    "pictures",
+    "pic",
+    "wallpaper",
+]
+
+WEB_WORDS = [
+    "latest",
+    "today",
+    "current",
+    "news",
+    "live",
+    "weather",
+    "score",
+    "stock",
+    "price",
+    "incident",
+    "breaking",
+]
+
+
 def router_node(state: ChatState) -> ChatState:
-    question = state["standalone_question"]
-    chat_history = state.get("chat_history", [])
 
-    messages = [SystemMessage(content=ROUTER_PROMPT)]
+    question = state["standalone_question"].strip()
+    lower_question = question.lower()
 
-    messages.extend(history_to_messages(chat_history))
+    # -------------------------
+    # Rule 1: Image Search
+    # -------------------------
+    if any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in IMAGE_WORDS):
+        state["route"] = "image_search"
+        print("[router] Rule -> image_search")
+        return state
 
-    messages.append(HumanMessage(content=question))
+    # -------------------------
+    # Rule 2: Web Search
+    # -------------------------
+    if any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in WEB_WORDS):
+        state["route"] = "web"
+        print("[router] Rule -> web")
+        return state
+
+    # -------------------------
+    # Otherwise ask the LLM
+    # -------------------------
+    # LLM fallback — classify based on the standalone question ALONE.
+    # rewrite_query_node already resolved any needed context into
+    # standalone_question, so passing raw chat_history here just adds
+    # noise that can make classification inconsistent run to run.
+    messages = [
+        SystemMessage(content=ROUTER_PROMPT),
+        HumanMessage(content=question),
+    ]
 
     response = llm.invoke(messages)
 
-    raw_decision = response.content.strip().lower()
-    print(f"[router_node] raw LLM output: {raw_decision!r}")  # TEMP DEBUG
 
-    # Robust matching instead of strict equality — handles cases where
-    # the model adds punctuation or extra words despite instructions
-    # to return only one word.
-    if "rag" in raw_decision:
-        decision = "rag"
-    elif "web" in raw_decision:
-        decision = "web"
+    raw = response.content.strip().lower()
+
+    print(f"[router_node] raw = {raw}")
+
+    if "rag" in raw:
+        route = "rag"
+
+    elif "web" in raw:
+        route = "web"
+
+    elif "image_search" in raw:
+        route = "image_search"
+
     else:
-        decision = "llm"
+        route = "llm"
 
-    print(f"[router_node] final route: {decision}")  # TEMP DEBUG
+    print(f"[router_node] final = {route}")
 
-    state["route"] = decision
+    state["route"] = route
 
     return state

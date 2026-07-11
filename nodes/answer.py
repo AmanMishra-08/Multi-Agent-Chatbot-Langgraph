@@ -16,21 +16,32 @@ llm = ChatGroq(
 
 def answer_node(state: ChatState) -> ChatState:
     """
-    Final node in the graph. Polishes the draft answer from
-    llm/rag/web, then saves this turn into chat_history so the
-    next question has memory of it.
+    Final node.
+
+    - image_search and llm routes: answer is already complete, skip polish.
+    - web and rag routes: light polish pass, since these blend search
+      results/retrieved chunks and benefit most from a coherence pass.
+    - Conversation history is updated in all cases.
     """
+
     question = state["question"]
     draft_answer = state["answer"]
+    route = state["route"]
+    chat_history = state.get("chat_history", [])
 
-    # Polish formatting/clarity without changing facts
+    # Skip polishing for routes that already produce a clean, complete answer
+    if route in ("image_search", "llm"):
+        state["chat_history"] = add_turn(chat_history, question, draft_answer)
+        state["answer"] = draft_answer
+        return state
+
+    # Polish web/rag answers — these blend external content and benefit
+    # most from a coherence/formatting pass
     prompt = ANSWER_PROMPT.format(draft_answer=draft_answer)
     response = llm.invoke([SystemMessage(content=prompt)])
-    final_answer = response.content
-
-    # Save this turn into memory (defined in utils/history.py)
-    chat_history = state.get("chat_history", [])
-    state["chat_history"] = add_turn(chat_history, question, final_answer)
+    final_answer = response.content.strip()
 
     state["answer"] = final_answer
+    state["chat_history"] = add_turn(chat_history, question, final_answer)
+
     return state

@@ -5,31 +5,44 @@ from config import MAX_HISTORY_MESSAGES
 
 def history_to_messages(chat_history: list) -> list:
     """
-    Converts chat_history (list of {"role": ..., "content": ...} dicts)
-    into LangChain message objects (HumanMessage / AIMessage) that
-    can be passed straight into an LLM call.
+    Convert chat history into LangChain messages.
+
+    Only the most recent conversation is sent to the rewrite model
+    to keep context relevant and avoid confusing it.
     """
     messages = []
-    for turn in chat_history:
-        if turn["role"] == "user":
-            messages.append(HumanMessage(content=turn["content"]))
-        else:
-            messages.append(AIMessage(content=turn["content"]))
+
+    # Keep only the latest history
+    recent_history = chat_history[-MAX_HISTORY_MESSAGES:]
+
+    for turn in recent_history:
+        role = turn.get("role")
+        content = turn.get("content", "")
+
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+
+        elif role == "assistant":
+            messages.append(AIMessage(content=content))
+
     return messages
 
 
 def add_turn(chat_history: list, question: str, answer: str) -> list:
     """
-    Appends the latest question+answer pair to chat_history,
-    then trims it so the history sent to the LLM doesn't grow
-    forever (keeps only the most recent MAX_HISTORY_MESSAGES).
+    Store the latest user question and assistant answer.
     """
+
     updated = chat_history + [
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": answer},
+        {
+            "role": "user",
+            "content": question,
+        },
+        {
+            "role": "assistant",
+            "content": answer,
+        },
     ]
 
-    if len(updated) > MAX_HISTORY_MESSAGES:
-        updated = updated[-MAX_HISTORY_MESSAGES:]
-
-    return updated
+    # Keep only the latest history
+    return updated[-MAX_HISTORY_MESSAGES:]

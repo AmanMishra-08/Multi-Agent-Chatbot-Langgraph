@@ -10,73 +10,135 @@ st.set_page_config(
 
 st.title("🤖 Intelligent AI Chatbot")
 
-# Labels shown for each route, so the badge looks nice
 ROUTE_LABELS = {
     "llm": "🧠 LLM",
-    "rag": "📄 RAG (documents)",
-    "web": "🌐 Web search",
+    "rag": "📄 RAG (Documents)",
+    "web": "🌐 Web Search",
+    "image_search": "🖼️ Image Search",
 }
 
-# Messages shown on screen
+# -------------------------
+# Session State
+# -------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Actual memory passed into LangGraph on every turn
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Display previous messages
-for message in st.session_state.messages:
+if "last_image_subject" not in st.session_state:
+    st.session_state.last_image_subject = ""
+
+# -------------------------
+# Display Previous Messages
+# -------------------------
+for msg_idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
-        # Show the route badge only for assistant messages that have one
-        if message["role"] == "assistant" and message.get("route"):
-            st.caption(ROUTE_LABELS.get(message["route"], message["route"]))
+
+        if message["role"] == "assistant":
+            st.caption(
+                ROUTE_LABELS.get(
+                    message.get("route", ""),
+                    message.get("route", "")
+                )
+            )
+
         st.markdown(message["content"])
 
-# User input
+        images = message.get("images", [])
+
+        if images:
+
+            cols = st.columns(min(4, len(images)))
+
+            for i, image in enumerate(images):
+                with cols[i % len(cols)]:
+
+                    st.image(
+                        image["url"],
+                        width=220
+                    )
+
+                    st.caption(image["title"])
+
+                    if image.get("link"):
+                        st.link_button(
+                            "🔗 Open",
+                            image["link"],
+                            key=f"history_{msg_idx}_{i}_{image['url']}"
+                        )
+
+# -------------------------
+# User Input
+# -------------------------
 question = st.chat_input("Ask me anything...")
 
 if question:
 
     # Display user message
-    st.chat_message("user").markdown(question)
+    with st.chat_message("user"):
+        st.markdown(question)
 
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": question
-        }
-    )
+    st.session_state.messages.append({
+        "role": "user",
+        "content": question
+    })
 
-    # Initial LangGraph state — chat_history comes from session_state,
-    # NOT an empty list, so the graph remembers past turns.
+    # Initial state
     state = {
         "question": question,
         "route": "",
-        "documents": [],
         "answer": "",
-        "chat_history": st.session_state.chat_history
+        "chat_history": st.session_state.chat_history,
+        "last_image_subject": st.session_state.last_image_subject,
     }
 
-    # Run LangGraph
+    # Invoke LangGraph
     result = graph.invoke(state)
 
     answer = result["answer"]
     route = result["route"]
+    images = result.get("fetched_images", [])
 
-    # Save the updated memory (built by nodes/answer.py) back
-    # into session_state so the NEXT question sees it.
-    st.session_state.chat_history = result["chat_history"]
+    st.session_state.chat_history = result.get("chat_history", [])
+    st.session_state.last_image_subject = result.get(
+        "last_image_subject", st.session_state.last_image_subject
+    )
 
-    # Display assistant message with the route badge on top
+    # -------------------------
+    # Assistant Response
+    # -------------------------
     with st.chat_message("assistant"):
+
         st.caption(ROUTE_LABELS.get(route, route))
+
         st.markdown(answer)
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer,
-            "route": route
-        }
-    )
+        if images:
+
+            cols = st.columns(min(4, len(images)))
+
+            for i, image in enumerate(images):
+                with cols[i % len(cols)]:
+
+                    st.image(
+                        image["url"],
+                        width=220
+                    )
+
+                    st.caption(image["title"])
+
+                    if image.get("link"):
+                        st.link_button(
+                            "🔗 Open",
+                            image["link"],
+                            key=f"current_{len(st.session_state.messages)}_{i}_{image['url']}"
+                        )
+
+    # Save assistant message
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": answer,
+        "route": route,
+        "images": images,
+    })
