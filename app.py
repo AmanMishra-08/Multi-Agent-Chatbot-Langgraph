@@ -30,6 +30,17 @@ if "last_image_subject" not in st.session_state:
     st.session_state.last_image_subject = ""
 
 # -------------------------
+# Helper: safely display an image, falling back gracefully if the
+# hotlinked URL is dead/blocked instead of showing a broken gray box.
+# -------------------------
+def safe_show_image(image, width=220):
+    try:
+        st.image(image["url"], width=width)
+    except Exception:
+        st.caption("⚠️ Image failed to load")
+    st.caption(image.get("title", ""))
+
+# -------------------------
 # Display Previous Messages
 # -------------------------
 for msg_idx, message in enumerate(st.session_state.messages):
@@ -54,12 +65,7 @@ for msg_idx, message in enumerate(st.session_state.messages):
             for i, image in enumerate(images):
                 with cols[i % len(cols)]:
 
-                    st.image(
-                        image["url"],
-                        width=220
-                    )
-
-                    st.caption(image["title"])
+                    safe_show_image(image)
 
                     if image.get("link"):
                         st.link_button(
@@ -121,12 +127,7 @@ if question:
             for i, image in enumerate(images):
                 with cols[i % len(cols)]:
 
-                    st.image(
-                        image["url"],
-                        width=220
-                    )
-
-                    st.caption(image["title"])
+                    safe_show_image(image)
 
                     if image.get("link"):
                         st.link_button(

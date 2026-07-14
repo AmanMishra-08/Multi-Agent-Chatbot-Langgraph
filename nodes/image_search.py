@@ -13,6 +13,8 @@ def image_search_node(state: ChatState) -> ChatState:
     - Supports "give me 4 images"
     - Cleans the search query
     - Remembers the last searched image subject
+    - Biases results toward faces/portraits when the query looks like
+      a person's name, filtering out movie posters, DVD collections, etc.
     """
 
     question = state["standalone_question"]
@@ -51,27 +53,65 @@ def image_search_node(state: ChatState) -> ChatState:
     print(f"[image_search] Search Query -> {clean_query}")
 
     # ------------------------------------
+    # Detect if this looks like a person's name search
+    # (e.g. "Jim Carrey", "Virat Kohli") -> apply a face filter so
+    # Google prioritizes portrait photos over posters/DVD collections/
+    # book covers/merchandise.
+    # Heuristic: 2-4 capitalized-looking words, no digits, no common
+    # object/place keywords.
+    # ------------------------------------
+    NON_PERSON_HINTS = [
+        "building", "tower", "mountain", "bridge", "temple", "beach",
+        "car", "dog", "cat", "flower", "lion", "tiger", "leopard",
+        "logo", "chart", "map", "food", "recipe", "landscape",
+    ]
+    # Strip a leading count number (e.g. "5 jim carrey" -> "jim carrey")
+    # before running person-detection, since our own numeric shortcut
+    # prepends counts to the query and was defeating the digit check.
+    subject_only = re.sub(r"^\d+\s+", "", clean_query).strip()
+
+    words = subject_only.split()
+    looks_like_person = (
+        1 <= len(words) <= 4
+        and not any(char.isdigit() for char in subject_only)
+        and not any(hint in subject_only.lower() for hint in NON_PERSON_HINTS)
+    )
+
+    search_params = {
+        "q": clean_query,
+        "engine": "google_images",
+        "api_key": SERPAPI_KEY,
+    }
+
+    if looks_like_person:
+        # Bias toward face/portrait photos — same as Google Images'
+        # Tools -> Type -> Faces filter.
+        search_params["tbs"] = "itp:face"
+        print(f"[image_search] Applying face filter for: {clean_query!r}")
+
+    # ------------------------------------
     # Search Images
     # ------------------------------------
     images = []
 
     try:
-        search = GoogleSearch(
-            {
-                "q": clean_query,
-                "engine": "google_images",
-                "api_key": SERPAPI_KEY,
-            }
-        )
+        search = GoogleSearch(search_params)
 
         results = search.get_dict()
 
-        for item in results.get("images_results", [])[:num_images]:
+        seen_urls = set()
+
+        for item in results.get("images_results", []):
+
+            if len(images) >= num_images:
+                break
 
             url = item.get("original") or item.get("thumbnail")
 
-            if not url:
+            if not url or url in seen_urls:
                 continue
+
+            seen_urls.add(url)
 
             images.append(
                 {
