@@ -1,34 +1,36 @@
 from typing import TypedDict, List, Dict, Any
-
-
 class ChatState(TypedDict):
-    # Original user question
+    # User question
     question: str
-
-    # Rewritten standalone question
     standalone_question: str
 
-    # Router decision
+    # Router
     route: str
 
-    # RAG retrieved chunks
+    # Context
     rag_context: List[str]
-
-    # Web search results
     web_context: List[str]
-
-    # Combined context passed to the LLM
     retrieved_context: str
 
-    # Final response
+    # Final answer
     answer: str
 
-    # Conversation memory
+    # Conversation history
     chat_history: List[dict]
 
-    # Image search results
+    # Image search
     fetched_images: List[Dict[str, Any]]
 
-    # NEW: remembers the last image subject
-    # Example: "Virat Kohli", "Rohit Sharma"
+    # Last searched person/object for image search
     last_image_subject: str
+
+    # NEW  Current conversation topic
+    current_topic: str
+
+    # NEW  Previous route
+    last_route: str
+
+    # Vision
+    uploaded_image: str
+    image_description: str
+    is_new_image_upload: bool

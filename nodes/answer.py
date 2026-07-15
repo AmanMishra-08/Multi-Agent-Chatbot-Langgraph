@@ -24,7 +24,7 @@ def answer_node(state: ChatState) -> ChatState:
     - Conversation history is updated in all cases.
     """
 
-    question = state["question"]
+    question = state.get("standalone_question", state["question"])
     draft_answer = state["answer"]
     route = state["route"]
     chat_history = state.get("chat_history", [])

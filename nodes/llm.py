@@ -14,13 +14,14 @@ llm = ChatGroq(
 
 
 def llm_node(state: ChatState) -> ChatState:
-    question = state["question"]
+    question = state.get("standalone_question", state["question"])
     chat_history = state.get("chat_history", [])
 
-    # Convert stored history into LangChain message objects
     past_messages = history_to_messages(chat_history)
 
-    messages = [SystemMessage(content= """You are an Intelligent AI Chatbot created by Aman Mishra.
+    messages = [
+        SystemMessage(
+            content="""You are an Intelligent AI Chatbot created by Aman Mishra.
 
 You are an AI assistant built using:
 - LangGraph
@@ -39,11 +40,18 @@ If someone asks:
 Reply that you were created by Aman Mishra.
 
 Do not claim you were created by Meta, OpenAI, Anthropic, or any other company.
-""")]
+"""
+        )
+    ]
+
     messages.extend(past_messages)
     messages.append(HumanMessage(content=question))
 
     response = llm.invoke(messages)
 
     state["answer"] = response.content
+    
+    # 🌟 FIX: Clear the sticky image subject during standard LLM chat turns
+    state["last_image_subject"] = ""
+
     return state

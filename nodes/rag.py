@@ -40,6 +40,7 @@ def rag_node(state: ChatState) -> ChatState:
     state["retrieved_context"] = context
     state["answer"] = response.content
 
-    return state  
+    # 🌟 FIX: Clear the sticky image subject since the user is explicitly asking a document question
+    state["last_image_subject"] = "" 
 
-   
+    return state

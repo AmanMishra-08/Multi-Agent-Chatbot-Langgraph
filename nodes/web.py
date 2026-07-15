@@ -44,4 +44,8 @@ def web_node(state: ChatState) -> ChatState:
     state["web_context"] = search_results
     state["retrieved_context"] = context
     state["answer"] = response.content
+    
+    # 🌟 FIX: Clear the sticky image subject since the user is now doing a general web search
+    state["last_image_subject"] = ""
+
     return state
