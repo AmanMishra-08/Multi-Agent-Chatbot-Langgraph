@@ -9,20 +9,36 @@ def image_search_node(state: ChatState) -> ChatState:
     print("[image_search] Received Query ->", query)
     
     # 1. Parse image count request
-    num_images = 4
+    num_images = 1
     count_match = re.search(r"\b(\d+)\b", query)
     if count_match:
         num_images = int(count_match.group(1))
     
     # 2. Clean up search term to get the precise subject target
     search_term = query
-    clean_match = re.search(r"(?:photos?|images?|pics?|pictures?)\s+of\s+(.+)$", query, re.IGNORECASE)
+
+    clean_match = re.search(
+        r"(?:photos?|images?|pics?|pictures?)\s+of\s+(.+)$",
+        query,
+        re.IGNORECASE,
+    )
+
     if clean_match:
+        # "images of ms dhoni"
         search_term = clean_match.group(1).strip()
+
     else:
-        search_term = re.sub(r"^\d+\s+(?:photos?|images?|pics?|pictures?)\s*", "", search_term, flags=re.IGNORECASE)
-        
-    print("[image_search] Target API Search Query ->", search_term)
+        # Remove "4 photo"
+        search_term = re.sub(
+            r"^\d+\s+(?:photos?|images?|pics?|pictures?)\s*$",
+            "",
+            query,
+            flags=re.IGNORECASE,
+        ).strip()
+
+        # If nothing remains, use previous subject
+        if not search_term:
+            search_term = state.get("last_image_subject", "")
     
     # Update last_image_subject so it tracks across state conversational turns
     state["last_image_subject"] = search_term

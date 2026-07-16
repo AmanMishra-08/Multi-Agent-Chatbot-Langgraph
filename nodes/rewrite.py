@@ -44,6 +44,15 @@ def rewrite_query_node(state: ChatState) -> ChatState:
     lower = question.lower().strip()
 
     # --------------------------------------------------
+    # New Shortcut: Casual Chat / Thanks Filter
+    # --------------------------------------------------
+    casual_phrases = ["thank you", "thanks", "ok thanks", "ok thank you", "okay thanks", "cool", "awesome", "bye"]
+    if lower in casual_phrases or lower == "ok" or lower == "okay":
+        print("[rewrite] Casual phrase detected. Bypassing LLM rewrite.")
+        state["standalone_question"] = question
+        return state
+
+    # --------------------------------------------------
     # Shortcut 1: No history
     # --------------------------------------------------
     if not chat_history and not has_uploaded_image:
@@ -51,7 +60,7 @@ def rewrite_query_node(state: ChatState) -> ChatState:
         return state
 
     # --------------------------------------------------
-    # Shortcut 2: Image follow-up (Guaranteed Regex Match)
+    # Shortcut 2: Image search follow-up (Guaranteed Regex Match)
     # --------------------------------------------------
     if last_subject:
         has_number = re.search(r"\d+", lower)
@@ -71,9 +80,6 @@ def rewrite_query_node(state: ChatState) -> ChatState:
             return state
 
     # --------------------------------------------------
-    # Shortcut 3: Uploaded image follow-up (🌟 FIX: Safe Whole-Word Token Swap)
-    # --------------------------------------------------
-    # --------------------------------------------------
     # Shortcut 3: Uploaded image follow-up (🌟 FIX: Safe Token Swap + Context Flush)
     # --------------------------------------------------
     if has_uploaded_image:
@@ -81,7 +87,6 @@ def rewrite_query_node(state: ChatState) -> ChatState:
         words = lower.split()
 
         # Check if the user is asking a basic question about the new image
-        # (e.g., "what is this?", "explain it")
         is_fresh_image_query = any(w in lower for w in ["what", "explain", "describe", "show"]) and any(p in words for p in ["this", "image", "pic", "photo"])
 
         if is_fresh_image_query or any(p in words for p in pronouns):
@@ -91,8 +96,7 @@ def rewrite_query_node(state: ChatState) -> ChatState:
             rewritten = re.sub(r"\bthis\b", "the uploaded image", rewritten, flags=re.IGNORECASE)
             rewritten = re.sub(r"\bthat\b", "the uploaded image", rewritten, flags=re.IGNORECASE)
 
-            # 2. 🌟 THE FIX: If it's a new image request, clear out legacy text states
-            # so the Vision Node doesn't inherit "Cyfuture" or web search histories.
+            # 2. Clear out legacy text states so we don't inherit old RAG/Web contexts
             state["web_context"] = []
             state["rag_context"] = []
             state["retrieved_context"] = ""
@@ -102,20 +106,28 @@ def rewrite_query_node(state: ChatState) -> ChatState:
             return state
 
     # --------------------------------------------------
-    # Shortcut 4: Already standalone (4+ words, no pronouns)
+    # Shortcut 4: Direct standalone informational queries
     # --------------------------------------------------
-    if len(question.split()) >= 4:
-        if not any(p in lower.split() for p in ["it", "this", "that", "they", "he", "she", "him", "her"]):
+    if lower.startswith(("what is", "who is", "where is", "how does", "why does")):
+        # If there are no pronouns, we pass the direct query through untouched
+        if not any(p in lower.split() for p in ["it", "this", "that"]):
+            print("[rewrite] Direct inquiry shortcut triggered ->", question)
             state["standalone_question"] = question
             return state
 
     # --------------------------------------------------
-    # LLM Rewrite Fallback
+    # LLM Rewrite Fallback (🌟 UPGRADED with Active Image Awareness)
     # --------------------------------------------------
     recent_history = chat_history[-4:]
     system_content = REWRITE_PROMPT
+    
     if last_subject:
         system_content += f"\nNote: The last discussed image subject was '{last_subject}'."
+    
+    # If an image has been uploaded, let the LLM know so it can append 
+    # "in the uploaded image" to follow-up questions like "what is location" or "give me the duration"
+    if has_uploaded_image:
+        system_content += "\nNote: There is an active uploaded image/document in the chat session. Resolve queries with respect to this uploaded asset."
 
     messages = [SystemMessage(content=system_content)]
     messages.extend(history_to_messages(recent_history))

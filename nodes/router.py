@@ -40,10 +40,6 @@ WEB_WORDS = [
     "breaking",
 ]
 
-# Deterministic RAG keywords -- these should always hit the knowledge
-# base regardless of what the LLM fallback might guess on a given run.
-# Covers common misspellings of "cyfuture" too, since typos were
-# slipping through inconsistently before.
 RAG_WORDS = [
     "cyfuture",
     "cufuture",
@@ -63,8 +59,17 @@ def router_node(state: ChatState) -> ChatState:
 
     question = state["standalone_question"].strip()
     print("\nROUTER QUESTION:", question)
-    lower_question = question.lower()
+    lower_question = question.lower().strip()
     has_image = bool(state.get("uploaded_image"))
+
+    # --------------------------------------------------
+    # 🌟 NEW FIX: Rule -1: Casual Pleasantry / Thanks Filter
+    # --------------------------------------------------
+    casual_phrases = ["thank you", "thanks", "ok thanks", "ok thank you", "okay thanks", "cool", "awesome", "bye", "ok", "okay"]
+    if lower_question in casual_phrases:
+        state["route"] = "llm"
+        print("[router] Rule -> llm (Casual pleasantry bypassed search/RAG)")
+        return state
 
     # -------------------------
     # Rule 0: Vision -- ONLY force vision for a brand-new upload this
@@ -78,10 +83,7 @@ def router_node(state: ChatState) -> ChatState:
 
     # If an image is attached (but not new this turn), SKIP the
     # keyword rules below entirely and go straight to the vision-aware
-    # LLM classification. Keyword matching can't reliably tell "search
-    # the web for an image" apart from "analyze my uploaded image" --
-    # both can contain words like "image"/"photo" -- so once an image
-    # is in play, real judgment is needed instead of a keyword guess.
+    # LLM classification.
     if not has_image:
 
         # -------------------------
@@ -109,10 +111,7 @@ def router_node(state: ChatState) -> ChatState:
             return state
 
     # -------------------------
-    # LLM fallback -- always used when an image is attached, or when
-    # no keyword rule matched. Tells the model whether an image is
-    # currently attached, and lets it genuinely judge whether THIS
-    # question is still about that image (-> vision) or not.
+    # LLM fallback
     # -------------------------
     messages = [
         SystemMessage(content=ROUTER_PROMPT),
