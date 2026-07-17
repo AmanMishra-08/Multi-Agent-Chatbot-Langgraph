@@ -1,5 +1,6 @@
 import re
 import traceback
+from utils.history import add_turn
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
@@ -79,5 +80,7 @@ Question:
 
     state["image_description"] = description
     state["answer"] = description
+
+    state["chat_history"] = add_turn(state.get("chat_history", []), question, description)
 
     return state
