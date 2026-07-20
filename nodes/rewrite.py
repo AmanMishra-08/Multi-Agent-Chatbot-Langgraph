@@ -20,24 +20,27 @@ You rewrite short conversational follow-up questions into standalone descriptive
 Rules:
 1. If the question is already complete, return it EXACTLY unchanged.
 2. Resolve pronouns (it, this, that, he, she, him, her) using the conversation history.
-3. If the user specifies an action or a count without a subject (e.g., "3 images", "show more", "another one"), append the last discussed subject from the history.
-4. Never invent a new subject.
+3. If the user specifies an action, descriptive detail, or a count without an explicit action verb (e.g., "3 images", "in a suit", "young boy and girl") and the history shows they were just creating or drawing images, prepend the implied command (e.g., "draw a young boy and girl").
+4. Never invent a new subject unrelated to the chat history.
 5. Never answer the question.
 6. Return ONLY the rewritten question.
 
 Examples:
 - History: User asks about Rohit Sharma -> User follow-up: "3 image" -> Rewrite: "3 images of rohit sharma"
-- History: User asks about Lion -> User follow-up: "in a suit" -> Rewrite: "lion in a suit"
+- History: User asks to draw a lion -> User follow-up: "in a suit" -> Rewrite: "draw a lion in a suit"
+- History: User says draw a man with girl -> User follow-up: "young boy and girl" -> Rewrite: "draw a young boy and girl"
 """
 
 def rewrite_query_node(state: ChatState) -> ChatState:
     question = state["question"].strip()
     chat_history = state.get("chat_history", [])
     last_subject = state.get("last_image_subject", "")
+    last_route = state.get("last_route", "")
 
     print("=" * 50)
     print("QUESTION:", question)
     print("LAST SUBJECT:", repr(last_subject))
+    print("LAST ROUTE:", repr(last_route))
     print("=" * 50)
 
     has_uploaded_image = bool(state.get("uploaded_image"))
@@ -80,23 +83,20 @@ def rewrite_query_node(state: ChatState) -> ChatState:
             return state
 
     # --------------------------------------------------
-    # Shortcut 3: Uploaded image follow-up (🌟 FIX: Safe Token Swap + Context Flush)
+    # Shortcut 3: Uploaded image follow-up
     # --------------------------------------------------
     if has_uploaded_image:
         pronouns = ["it", "this", "that", "its"]
         words = lower.split()
 
-        # Check if the user is asking a basic question about the new image
         is_fresh_image_query = any(w in lower for w in ["what", "explain", "describe", "show"]) and any(p in words for p in ["this", "image", "pic", "photo"])
 
         if is_fresh_image_query or any(p in words for p in pronouns):
-            # 1. Clean up pronouns using safe regular expressions
             rewritten = re.sub(r"\bits\b", "the uploaded image's", question, flags=re.IGNORECASE)
             rewritten = re.sub(r"\bit\b", "the uploaded image", rewritten, flags=re.IGNORECASE)
             rewritten = re.sub(r"\bthis\b", "the uploaded image", rewritten, flags=re.IGNORECASE)
             rewritten = re.sub(r"\bthat\b", "the uploaded image", rewritten, flags=re.IGNORECASE)
 
-            # 2. Clear out legacy text states so we don't inherit old RAG/Web contexts
             state["web_context"] = []
             state["rag_context"] = []
             state["retrieved_context"] = ""
@@ -109,14 +109,23 @@ def rewrite_query_node(state: ChatState) -> ChatState:
     # Shortcut 4: Direct standalone informational queries
     # --------------------------------------------------
     if lower.startswith(("what is", "who is", "where is", "how does", "why does")):
-        # If there are no pronouns, we pass the direct query through untouched
         if not any(p in lower.split() for p in ["it", "this", "that"]):
             print("[rewrite] Direct inquiry shortcut triggered ->", question)
             state["standalone_question"] = question
             return state
 
     # --------------------------------------------------
-    # LLM Rewrite Fallback (🌟 UPGRADED with Active Image Awareness)
+    # Shortcut 5: Image Generation Requests
+    # --------------------------------------------------
+    image_gen_words = ["generate", "create", "draw", "paint", "illustrate", "design", "render"]
+
+    if any(re.search(rf"\b{re.escape(word)}\b", lower) for word in image_gen_words):
+        print("[rewrite] Image generation shortcut ->", question)
+        state["standalone_question"] = question
+        return state
+
+    # --------------------------------------------------
+    # LLM Rewrite Fallback
     # --------------------------------------------------
     recent_history = chat_history[-4:]
     system_content = REWRITE_PROMPT
@@ -124,11 +133,17 @@ def rewrite_query_node(state: ChatState) -> ChatState:
     if last_subject:
         system_content += f"\nNote: The last discussed image subject was '{last_subject}'."
     
-    # If an image has been uploaded, let the LLM know so it can append 
-    # "in the uploaded image" to follow-up questions like "what is location" or "give me the duration"
+    # 🌟 AIRTIGHT FIX: Explicitly command the LLM to prepend the action word
+    if last_route == "image_gen":
+        system_content += (
+            "\nCRITICAL: The user is currently in an image generation flow. "
+            "If their new question is just a descriptive phrase (e.g., 'old boy and girl') without action verbs, "
+            "they want to generate a new image matching this description. "
+            "Prepend an action verb like 'Draw' or 'Generate image of' to their query."
+        )
+
     if has_uploaded_image:
         system_content += "\nNote: There is an active uploaded image/document in the chat session. Resolve queries with respect to this uploaded asset."
-
     messages = [SystemMessage(content=system_content)]
     messages.extend(history_to_messages(recent_history))
     messages.append(HumanMessage(content=question))

@@ -8,6 +8,7 @@ from nodes.llm import llm_node
 from nodes.rag import rag_node
 from nodes.web import web_node
 from nodes.image_search import image_search_node
+from nodes.image_gen import image_gen_node 
 from nodes.answer import answer_node
 from nodes.vision import vision_node
 
@@ -20,6 +21,7 @@ graph_builder.add_node("llm", llm_node)
 graph_builder.add_node("rag", rag_node)
 graph_builder.add_node("web", web_node)
 graph_builder.add_node("image_search", image_search_node)
+graph_builder.add_node("image_gen", image_gen_node) 
 graph_builder.add_node("answer", answer_node)
 graph_builder.add_node("vision", vision_node)
 
@@ -34,6 +36,7 @@ graph_builder.add_conditional_edges(
         "rag": "rag",
         "web": "web",
         "image_search": "image_search",
+        "image_gen": "image_gen",
         "vision": "vision",
     },
 )
@@ -43,6 +46,8 @@ graph_builder.add_edge("rag", "answer")
 graph_builder.add_edge("web", "answer")
 
 graph_builder.add_edge("image_search", END)
+
+graph_builder.add_edge("image_gen", END) 
 
 graph_builder.add_edge("answer", END)
 

@@ -26,6 +26,28 @@ IMAGE_WORDS = [
     "wallpaper",
 ]
 
+IMAGE_GEN_WORDS = [
+    "generate",
+    "create",
+    "draw",
+    "make",
+    "design",
+    "paint",
+    "illustrate",
+    "render",
+]
+
+# NEW FIX: Catch phrases common in generation rewrites so they don't trip image_search
+IMAGE_GEN_PHRASES = [
+    "image of",
+    "images of",
+    "picture of",
+    "pictures of",
+    "photo of",
+    "photos of",
+    "pic of",
+]
+
 WEB_WORDS = [
     "latest",
     "today",
@@ -63,11 +85,12 @@ def router_node(state: ChatState) -> ChatState:
     has_image = bool(state.get("uploaded_image"))
 
     # --------------------------------------------------
-    # 🌟 NEW FIX: Rule -1: Casual Pleasantry / Thanks Filter
+    # 🌟 Rule -1: Casual Pleasantry / Thanks Filter
     # --------------------------------------------------
     casual_phrases = ["thank you", "thanks", "ok thanks", "ok thank you", "okay thanks", "cool", "awesome", "bye", "ok", "okay"]
     if lower_question in casual_phrases:
         state["route"] = "llm"
+        state["last_route"] = "llm"  # 🌟 Added last_route tracking
         print("[router] Rule -> llm (Casual pleasantry bypassed search/RAG)")
         return state
 
@@ -78,6 +101,7 @@ def router_node(state: ChatState) -> ChatState:
     # -------------------------
     if state.get("is_new_image_upload"):
         state["route"] = "vision"
+        state["last_route"] = "vision"  # 🌟 Added last_route tracking
         print("[router] Rule -> vision (new image uploaded)")
         return state
 
@@ -87,11 +111,25 @@ def router_node(state: ChatState) -> ChatState:
     if not has_image:
 
         # -------------------------
-        # Rule 1: RAG (deterministic -- company/knowledge base topics)
+        # Rule 0: RAG (deterministic -- company/knowledge base topics)
         # -------------------------
         if any(word in lower_question for word in RAG_WORDS):
             state["route"] = "rag"
+            state["last_route"] = "rag"  # 🌟 Added last_route tracking
             print("[router] Rule -> rag")
+            return state
+                
+        # -------------------------
+        # Rule 1: Image Generation (Prioritized)
+        # -------------------------
+        # Check standard verbs ("draw", "create") OR rewritten phrases ("image of a...")
+        has_gen_word = any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in IMAGE_GEN_WORDS)
+        has_gen_phrase = any(phrase in lower_question for phrase in IMAGE_GEN_PHRASES)
+
+        if has_gen_word or has_gen_phrase:
+            state["route"] = "image_gen"
+            state["last_route"] = "image_gen"  # 🌟 Added last_route tracking
+            print("[router] Rule -> image_gen")
             return state
 
         # -------------------------
@@ -99,6 +137,7 @@ def router_node(state: ChatState) -> ChatState:
         # -------------------------
         if any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in IMAGE_WORDS):
             state["route"] = "image_search"
+            state["last_route"] = "image_search"  # 🌟 Added last_route tracking
             print("[router] Rule -> image_search")
             return state
 
@@ -107,6 +146,7 @@ def router_node(state: ChatState) -> ChatState:
         # -------------------------
         if any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in WEB_WORDS):
             state["route"] = "web"
+            state["last_route"] = "web"  # 🌟 Added last_route tracking
             print("[router] Rule -> web")
             return state
 
@@ -139,10 +179,16 @@ missions, or people that could be outdated or uncertain."""
         route = "web"
     elif "image_search" in raw:
         route = "image_search"
+    elif "image_gen" in raw:
+        route = "image_gen"    
     else:
         route = "llm"
 
     print(f"[router_node] final = {route}")
     print("Final Route:", route)
+    
+    # 🌟 Added sync for both variables down here
     state["route"] = route
+    state["last_route"] = route
+    
     return state

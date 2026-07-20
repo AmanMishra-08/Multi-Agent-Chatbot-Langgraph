@@ -132,8 +132,41 @@ point of water", "explain photosynthesis") or clearly conversational/
 creative requests.
 
 
+5. Return "image_gen"
 
-5. Return "llm"
+
+The user wants to CREATE a brand new AI image.
+
+Examples:
+
+Generate Iron Man.
+
+Generate a futuristic city.
+
+Create an anime girl.
+
+Draw a dragon.
+
+Make a logo.
+
+Create a Pixar character.
+
+Generate a fantasy castle.
+
+Draw Batman riding a horse.
+
+Generate an astronaut on Mars.
+
+IMPORTANT
+
+The user is asking to CREATE something.
+
+NOT search the internet.
+
+Return image_gen.
+
+
+6. Return "llm"
 
 Everything else -- general knowledge, casual conversation, coding,
 math, writing, and any question with no image attached and no other

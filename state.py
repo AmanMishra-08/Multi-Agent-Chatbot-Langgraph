@@ -1,36 +1,57 @@
 from typing import TypedDict, List, Dict, Any
+
+
 class ChatState(TypedDict):
-    # User question
+    # -------------------------
+    # User Question
+    # -------------------------
     question: str
     standalone_question: str
 
+    # -------------------------
     # Router
+    # -------------------------
     route: str
 
+    # -------------------------
     # Context
+    # -------------------------
     rag_context: List[str]
     web_context: List[str]
     retrieved_context: str
 
-    # Final answer
+    # -------------------------
+    # Final Answer
+    # -------------------------
     answer: str
 
-    # Conversation history
+    # -------------------------
+    # Conversation History
+    # -------------------------
     chat_history: List[dict]
 
-    # Image search
+    # -------------------------
+    # Image Search
+    # -------------------------
     fetched_images: List[Dict[str, Any]]
 
-    # Last searched person/object for image search
+    # Last searched subject
     last_image_subject: str
 
-    # NEW  Current conversation topic
-    current_topic: str
+    # -------------------------
+    # Image Generation (NEW)
+    # -------------------------
+    generated_images: List[str]
 
-    # NEW  Previous route
+    # -------------------------
+    # Conversation Memory
+    # -------------------------
+    current_topic: str
     last_route: str
 
+    # -------------------------
     # Vision
+    # -------------------------
     uploaded_image: str
     image_description: str
     is_new_image_upload: bool
