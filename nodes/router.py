@@ -124,9 +124,8 @@ def router_node(state: ChatState) -> ChatState:
         # -------------------------
         # Check standard verbs ("draw", "create") OR rewritten phrases ("image of a...")
         has_gen_word = any(re.search(rf"\b{re.escape(word)}\b", lower_question) for word in IMAGE_GEN_WORDS)
-        has_gen_phrase = any(phrase in lower_question for phrase in IMAGE_GEN_PHRASES)
 
-        if has_gen_word or has_gen_phrase:
+        if has_gen_word :
             state["route"] = "image_gen"
             state["last_route"] = "image_gen"  # 🌟 Added last_route tracking
             print("[router] Rule -> image_gen")

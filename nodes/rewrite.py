@@ -65,18 +65,36 @@ def rewrite_query_node(state: ChatState) -> ChatState:
     # --------------------------------------------------
     # Shortcut 2: Image search follow-up (Guaranteed Regex Match)
     # --------------------------------------------------
+    # --------------------------------------------------
+    # Shortcut 2: Image follow-up (search OR generation, route-aware)
+    # --------------------------------------------------
     if last_subject:
         has_number = re.search(r"\d+", lower)
         has_image_keyword = any(w in lower for w in ["image", "photo", "pic", "picture"])
-        has_nav_keyword = any(w in lower for w in ["more", "another", "next"])
+        has_nav_keyword = any(w in lower for w in ["more", "another", "next", "different", "again"])
 
         if (has_number and has_image_keyword) or has_nav_keyword or (lower in ["image", "photos", "pics"]):
-            if has_number:
-                rewritten = f"{has_number.group()} photos of {last_subject}"
-            elif "more" in lower:
-                rewritten = f"more photos of {last_subject}"
+
+            if last_route == "image_gen":
+                # The user was just generating an image -- any vague
+                # follow-up ("different", "another", a number) means
+                # "generate again", not "search the web". Phrasing it
+                # with an explicit "generate" verb guarantees the
+                # router's has_gen_word check routes it correctly,
+                # regardless of which specific follow-up word was used.
+                if has_number:
+                    rewritten = f"generate {has_number.group()} images of {last_subject}"
+                else:
+                    rewritten = f"generate a different image of {last_subject}"
             else:
-                rewritten = f"photo of {last_subject}"
+                # last_route was image_search (or anything else) --
+                # keep the original search-style phrasing.
+                if has_number:
+                    rewritten = f"{has_number.group()} photos of {last_subject}"
+                elif "more" in lower:
+                    rewritten = f"more photos of {last_subject}"
+                else:
+                    rewritten = f"photo of {last_subject}"
 
             print("[rewrite] image shortcut triggered ->", rewritten)
             state["standalone_question"] = rewritten
