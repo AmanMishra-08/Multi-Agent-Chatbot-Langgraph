@@ -236,3 +236,63 @@ if question:
     })
 
     st.rerun()
+
+
+import streamlit as st
+from pathlib import Path
+
+from stt import speech_to_text
+from graph import graph
+
+
+
+audio = st.audio_input("Speak something")
+
+if audio is not None:
+    # Save recorded audio
+    audio_path = Path("audio/input.wav")
+    audio_path.parent.mkdir(exist_ok=True)
+
+    with open(audio_path, "wb") as f:
+        f.write(audio.getvalue())
+
+    st.success("Saved to audio/input.wav")
+
+    # Convert speech to text using Whisper
+    user_text = speech_to_text(str(audio_path))
+
+    st.write("You said:", user_text)
+
+    # Create the state expected by your LangGraph
+    state = {
+        "question": user_text,
+        "chat_history": [],
+        "uploaded_image": None,
+        "image_description": None,
+        "is_new_image_upload": False,
+    }
+
+    # Run your existing LangGraph workflow
+    result = graph.invoke(state)
+
+    ROUTE_LABELS = {
+    "llm": "🧠 LLM",
+    "rag": "📚 RAG",
+    "web": "🌐 Web Search",
+    "vision": "👁️ Vision",
+    "image_search": "🖼️ Image Search",
+    "image_gen": "🎨 Image Generation",
+    }
+
+# Show which route was selected
+    route = result.get("route")
+    if route:
+        st.info(f"Route: {ROUTE_LABELS.get(route, route)}")
+
+    # Display the chatbot response
+    if "answer" in result:
+        st.write(result["answer"])
+    elif "images" in result:
+        st.write("Bot returned images.")
+    else:
+        st.write("No response generated.")

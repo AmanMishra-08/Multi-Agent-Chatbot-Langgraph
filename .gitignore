@@ -3,3 +3,9 @@ venv/
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
+
+# Ignore generated audio files
+audio/*.wav
+
+# Keep the audio folder
+!audio/.gitkeep
