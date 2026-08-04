@@ -11,7 +11,7 @@ from state import ChatState
 
 vision_llm = ChatGroq(
     api_key=GROQ_API_KEY,
-    model="qwen/qwen3.6-27b",   # Change this if you use another vision model
+    model="qwen/qwen3.6-27b",   # Change this if you use another vision model >>> analyze the iamge 
     temperature=0.3,
     max_tokens=4096,
 )

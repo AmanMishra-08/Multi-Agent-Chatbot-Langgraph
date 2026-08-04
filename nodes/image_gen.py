@@ -76,7 +76,7 @@ def image_gen_node(state: ChatState) -> ChatState:
 
     for seed in range(num_images):
         image_url = (
-            f"https://image.pollinations.ai/prompt/"
+            f"https://image.pollinations.ai/prompt/"   # image gen api key 
             f"{encoded_prompt}?seed={seed}"
         )
         generated_images.append(image_url)
