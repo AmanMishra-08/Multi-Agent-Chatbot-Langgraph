@@ -18,7 +18,7 @@ def is_streamlit_cloud() -> bool:
     return "STREAMLIT_CLOUD" in os.environ
 
 def piper_tts(text: str, output_path: str = "audio/response.wav") -> str:
-    """Local Piper TTS (Windows/Linux) - LOCAL ONLY"""
+    """Local Piper TTS - ENGLISH ONLY (Windows/Linux)"""
     output_file = Path(output_path)
     output_file.parent.mkdir(exist_ok=True)
 
@@ -37,7 +37,7 @@ def piper_tts(text: str, output_path: str = "audio/response.wav") -> str:
     return str(output_file)
 
 def gtts_fallback(text: str, output_path: str = "audio/response.wav") -> str:
-    """gTTS fallback for Streamlit Cloud"""
+    """gTTS for Hindi or Cloud"""
     from gtts import gTTS
     
     output_file = Path(output_path)
@@ -50,18 +50,32 @@ def gtts_fallback(text: str, output_path: str = "audio/response.wav") -> str:
     return str(output_file)
 
 def text_to_speech(text: str, output_path: str = "audio/response.wav") -> str:
-    """Main TTS: Uses Piper locally, gTTS on Streamlit Cloud"""
+    """
+    Main TTS function:
+    - Cloud: Always use gTTS (English + Hindi)
+    - Locally:
+      - English: Use Piper (fast, offline)
+      - Hindi: Use gTTS (no IndicTTS yet)
+    """
     
-    # ON STREAMLIT CLOUD: Always use gTTS
+    # ON STREAMLIT CLOUD: Always use gTTS for everything
     if is_streamlit_cloud():
+        print("🌐 Using gTTS (Cloud)")
         return gtts_fallback(text, output_path)
     
-    # LOCALLY: Try Piper, fallback to gTTS if it fails
-    try:
-        return piper_tts(text, output_path)
-    except Exception as e:
-        print(f"⚠️ Piper failed: {e}. Using gTTS...")
+    # LOCALLY:
+    if is_hindi(text):
+        # Hindi: Use gTTS (for now)
+        print("🇮🇳 Hindi detected - Using gTTS")
         return gtts_fallback(text, output_path)
+    else:
+        # English: Try Piper, fallback to gTTS if it fails
+        try:
+            print("🇬🇧 English detected - Using Piper")
+            return piper_tts(text, output_path)
+        except Exception as e:
+            print(f"⚠️ Piper failed: {e}. Falling back to gTTS...")
+            return gtts_fallback(text, output_path)
 
 if __name__ == "__main__":
     path = text_to_speech("Hello Aman, welcome back.")
