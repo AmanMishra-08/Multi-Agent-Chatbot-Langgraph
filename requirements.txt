@@ -15,4 +15,3 @@ typing_extensions
 google-search-results
 openai-whisper
 gtts>=2.4.0
-indictts>=0.1.0
