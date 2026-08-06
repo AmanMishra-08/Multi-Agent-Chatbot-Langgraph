@@ -3,6 +3,7 @@ import base64
 from graph import graph
 from pathlib import Path
 from stt import speech_to_text
+from tts import text_to_speech
 
 st.set_page_config(
     page_title="AI Chatbot",
@@ -184,6 +185,17 @@ def process_question(question_text, uploaded_image_file=None):
         st.caption(ROUTE_LABELS.get(route, route))
         st.markdown(answer)
 
+        # Generate TTS audio
+        audio_response_path = text_to_speech(answer)
+
+        # Read audio file
+        with open(audio_response_path, "rb") as f:
+            audio_bytes = f.read()
+
+    # Speaker button
+        if st.button("🔊 Speak", key=f"speak_{len(st.session_state.messages)}"):
+            st.audio(audio_bytes, format="audio/wav", autoplay=True)
+
         if generated_images:
             cols = st.columns(min(4, len(generated_images)))
             for i, image_url in enumerate(generated_images):
@@ -227,6 +239,13 @@ for msg_idx, message in enumerate(st.session_state.messages):
             )
 
         st.markdown(message["content"])
+
+        # Show speaker button for assistant messages
+        if message["role"] == "assistant":
+            if st.button("🔊 ", key=f"history_speak_{msg_idx}"):
+                audio_path = text_to_speech(message["content"])
+                with open(audio_path, "rb") as f:
+                    st.audio(f.read(), format="audio/wav", autoplay=True)
 
         images = message.get("images", [])
         generated_images = message.get("generated_images", [])
