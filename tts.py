@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess
 import os
 
-# Local Piper paths (only used locally)
+# Local Piper paths (English only)
 PIPER_EXE = Path("piper/piper.exe")
 PIPER_MODEL = Path("models/en_US-amy-medium.onnx")
 
@@ -36,8 +36,23 @@ def piper_tts(text: str, output_path: str = "audio/response.wav") -> str:
 
     return str(output_file)
 
+def indictts_tts(text: str, output_path: str = "audio/response.wav") -> str:
+    """Local IndicTTS - HINDI ONLY"""
+    from indictts import IndicTTS
+    
+    output_file = Path(output_path)
+    output_file.parent.mkdir(exist_ok=True)
+    
+    # Initialize IndicTTS for Hindi
+    tts = IndicTTS(lang='hi', gender='female')
+    
+    # Generate audio
+    tts.save_to_file(text, str(output_file))
+    
+    return str(output_file)
+
 def gtts_fallback(text: str, output_path: str = "audio/response.wav") -> str:
-    """gTTS for Hindi or Cloud"""
+    """gTTS for Cloud (English + Hindi)"""
     from gtts import gTTS
     
     output_file = Path(output_path)
@@ -52,24 +67,32 @@ def gtts_fallback(text: str, output_path: str = "audio/response.wav") -> str:
 def text_to_speech(text: str, output_path: str = "audio/response.wav") -> str:
     """
     Main TTS function:
-    - Cloud: Always use gTTS (English + Hindi)
-    - Locally:
-      - English: Use Piper (fast, offline)
-      - Hindi: Use gTTS (no IndicTTS yet)
+    
+    Streamlit Cloud:
+    ├─ English: gTTS
+    └─ Hindi: gTTS
+    
+    Locally:
+    ├─ English: Piper
+    └─ Hindi: IndicTTS
     """
     
-    # ON STREAMLIT CLOUD: Always use gTTS for everything
+    # ON STREAMLIT CLOUD: Always use gTTS
     if is_streamlit_cloud():
-        print("🌐 Using gTTS (Cloud)")
+        print("☁️ Cloud detected - Using gTTS")
         return gtts_fallback(text, output_path)
     
     # LOCALLY:
     if is_hindi(text):
-        # Hindi: Use gTTS (for now)
-        print("🇮🇳 Hindi detected - Using gTTS")
-        return gtts_fallback(text, output_path)
+        # Hindi: Use IndicTTS
+        try:
+            print("🇮🇳 Hindi detected - Using IndicTTS")
+            return indictts_tts(text, output_path)
+        except Exception as e:
+            print(f"⚠️ IndicTTS failed: {e}. Falling back to gTTS...")
+            return gtts_fallback(text, output_path)
     else:
-        # English: Try Piper, fallback to gTTS if it fails
+        # English: Use Piper
         try:
             print("🇬🇧 English detected - Using Piper")
             return piper_tts(text, output_path)
@@ -78,5 +101,5 @@ def text_to_speech(text: str, output_path: str = "audio/response.wav") -> str:
             return gtts_fallback(text, output_path)
 
 if __name__ == "__main__":
-    path = text_to_speech("Hello Aman, welcome back.")
+    path = text_to_speech("Hello Aman")
     print(path)
