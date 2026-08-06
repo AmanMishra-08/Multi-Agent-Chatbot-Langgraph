@@ -14,5 +14,4 @@ tavily-python
 typing_extensions
 google-search-results
 openai-whisper
-piper-tts==1.2.0
-gtts==2.4.0
+gtts>=2.4.0

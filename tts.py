@@ -2,7 +2,7 @@ from pathlib import Path
 import subprocess
 import os
 
-# Local paths (for running locally)
+# Local Piper paths (only used if files exist)
 PIPER_EXE = Path("piper/piper.exe")
 PIPER_MODEL = Path("models/en_US-amy-medium.onnx")
 
@@ -12,10 +12,6 @@ def is_hindi(text: str) -> bool:
         if "\u0900" <= ch <= "\u097F":
             return True
     return False
-
-def is_streamlit_cloud() -> bool:
-    """Check if running on Streamlit Cloud"""
-    return "STREAMLIT_CLOUD" in os.environ
 
 def piper_tts(text: str, output_path: str = "audio/response.wav") -> str:
     """Local Piper TTS (Windows/Linux)"""
@@ -43,26 +39,25 @@ def gtts_fallback(text: str, output_path: str = "audio/response.wav") -> str:
     output_file = Path(output_path)
     output_file.parent.mkdir(exist_ok=True)
     
-    tts = gTTS(text=text, lang='en', slow=False)
+    # Use Hindi for Hindi text, English for everything else
+    lang = 'hi' if is_hindi(text) else 'en'
+    tts = gTTS(text=text, lang=lang, slow=False)
     tts.save(str(output_file))
     
     return str(output_file)
 
 def text_to_speech(text: str, output_path: str = "audio/response.wav") -> str:
-    """Main TTS function with fallback support"""
+    """Main TTS: Uses Piper locally, falls back to gTTS on Cloud"""
     
-    # On Streamlit Cloud, use gTTS
-    if is_streamlit_cloud():
-        return gtts_fallback(text, output_path)
-    
-    # Locally, try Piper first
-    try:
-        if is_hindi(text):
+    # Check if Piper executable exists (only true locally)
+    if PIPER_EXE.exists() and PIPER_MODEL.exists():
+        try:
             return piper_tts(text, output_path)
-        else:
-            return piper_tts(text, output_path)
-    except (FileNotFoundError, PermissionError, subprocess.CalledProcessError) as e:
-        print(f"⚠️ Piper failed: {e}. Falling back to gTTS...")
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            print(f"⚠️ Piper failed: {e}. Using gTTS fallback...")
+            return gtts_fallback(text, output_path)
+    else:
+        # Streamlit Cloud (no Piper binary) → use gTTS
         return gtts_fallback(text, output_path)
 
 if __name__ == "__main__":
