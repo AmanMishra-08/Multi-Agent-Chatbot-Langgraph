@@ -3,7 +3,7 @@ from pathlib import Path
 
 # Load the Whisper model once when the file is imported
 # tiny is fast; later you can use base or small for better accuracy.
-model = whisper.load_model("tiny")
+model = whisper.load_model("base")
 
 def speech_to_text(audio_path: str) -> str:
     """
